@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Apostila } from '@/data/apostilas';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { X, CreditCard, Check, Loader2, ShieldCheck, BookOpen } from 'lucide-react';
 import { purchasesAPI } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
+import { Elements } from '@stripe/react-stripe-js';
+import { getStripe } from '@/lib/stripe';
+import { StripePaymentForm } from './StripePaymentForm';
 
 interface PurchaseModalProps {
   apostila: Apostila | null;
@@ -18,6 +21,9 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({ apostila, isOpen, onClose
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [useStripe, setUseStripe] = useState(false);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [showStripeForm, setShowStripeForm] = useState(false);
+  const stripePromise = getStripe();
 
   if (!isOpen || !apostila) return null;
 
@@ -35,49 +41,21 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({ apostila, isOpen, onClose
     
     try {
       if (useStripe) {
-        // Fluxo com Stripe (modo teste)
-        // 1. Criar Payment Intent
+        // Criar Payment Intent e mostrar formulário Stripe
         const response = await purchasesAPI.createPaymentIntent(apostila.id);
-        const { clientSecret } = response.data;
-        
-        // Simular pagamento bem-sucedido no modo teste
-        // Em produção, você usaria Stripe Elements aqui
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        // 2. Confirmar compra (simulando paymentIntentId)
-        const mockPaymentIntentId = `pi_test_${Date.now()}`;
-        await purchasesAPI.confirmPurchase(apostila.id, mockPaymentIntentId);
+        setClientSecret(response.data.clientSecret);
+        setShowStripeForm(true);
+        setIsProcessing(false);
       } else {
         // Fluxo simulado (sem Stripe)
         await new Promise(resolve => setTimeout(resolve, 2000));
         
-        // Criar compra diretamente (para teste sem Stripe)
         const mockPaymentIntentId = `mock_${Date.now()}`;
         await purchasesAPI.confirmPurchase(apostila.id, mockPaymentIntentId);
+        
+        handleSuccess();
       }
       
-      // Atualizar usuário no contexto
-      if (user) {
-        const updatedUser = {
-          ...user,
-          purchasedApostilas: [...user.purchasedApostilas, apostila.id],
-        };
-        localStorage.setItem('auth_user', JSON.stringify(updatedUser));
-      }
-      
-      setIsSuccess(true);
-      
-      toast({
-        title: 'Compra realizada!',
-        description: `Você adquiriu "${apostila.title}" com sucesso.`,
-      });
-      
-      // Auto close after success
-      setTimeout(() => {
-        setIsSuccess(false);
-        onClose();
-        window.location.reload(); // Recarregar para atualizar UI
-      }, 2000);
     } catch (error: any) {
       console.error('Erro na compra:', error);
       toast({
@@ -87,6 +65,54 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({ apostila, isOpen, onClose
       });
       setIsProcessing(false);
     }
+  };
+
+  const handleSuccess = () => {
+    // Atualizar usuário no contexto
+    if (user && apostila) {
+      const updatedUser = {
+        ...user,
+        purchasedApostilas: [...user.purchasedApostilas, apostila.id],
+      };
+      localStorage.setItem('auth_user', JSON.stringify(updatedUser));
+    }
+    
+    setIsSuccess(true);
+    
+    toast({
+      title: 'Compra realizada!',
+      description: `Você adquiriu "${apostila.title}" com sucesso.`,
+    });
+    
+    // Auto close after success
+    setTimeout(() => {
+      setIsSuccess(false);
+      setShowStripeForm(false);
+      setClientSecret(null);
+      onClose();
+      window.location.reload();
+    }, 2000);
+  };
+
+  const handleStripeSuccess = async (paymentIntentId: string) => {
+    try {
+      await purchasesAPI.confirmPurchase(apostila!.id, paymentIntentId);
+      handleSuccess();
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao confirmar compra',
+        description: error.response?.data?.message || 'Erro ao confirmar compra.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleStripeError = (error: string) => {
+    toast({
+      title: 'Erro no pagamento',
+      description: error,
+      variant: 'destructive',
+    });
   };
 
   const handleClose = () => {
@@ -151,7 +177,23 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({ apostila, isOpen, onClose
                 </div>
               </div>
 
-              {/* Payment Method */}
+              {/* Stripe Payment Form */}
+              {showStripeForm && clientSecret && stripePromise ? (
+                <Elements stripe={stripePromise} options={{ clientSecret }}>
+                  <StripePaymentForm
+                    clientSecret={clientSecret}
+                    amount={apostila.price}
+                    onSuccess={handleStripeSuccess}
+                    onError={handleStripeError}
+                    onCancel={() => {
+                      setShowStripeForm(false);
+                      setClientSecret(null);
+                    }}
+                  />
+                </Elements>
+              ) : (
+                <>
+                  {/* Payment Method */}
               <div className="border border-border rounded-2xl p-4 mb-6">
                 <div className="flex items-center gap-3 mb-3">
                   <CreditCard className="w-5 h-5 text-primary" />
@@ -220,6 +262,8 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({ apostila, isOpen, onClose
                   )}
                 </Button>
               </div>
+                </>
+              )}
             </div>
           </>
         )}
