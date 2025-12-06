@@ -156,15 +156,14 @@ const Catalogo: React.FC = () => {
 
             {/* Products Grid */}
             {filteredApostilas.length > 0 ? (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {filteredApostilas.map((apostila, index) => (
-                  <div
-                    key={apostila.id}
-                    className="animate-fade-in-up"
-                    style={{ animationDelay: `${index * 0.05}s` }}
-                  >
-                    <ApostilaCard apostila={apostila} onPurchase={handlePurchase} />
-                  </div>
+                  <ApostilaCard 
+                    key={apostila.id} 
+                    apostila={apostila} 
+                    onPurchase={handlePurchase}
+                    index={index}
+                  />
                 ))}
               </div>
             ) : (
