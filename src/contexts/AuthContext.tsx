@@ -113,7 +113,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const purchaseApostila = async (apostilaId: string) => {
     if (user) {
       try {
-        await purchasesAPI.create(apostilaId);
+        // Nota: Este método não é mais usado diretamente
+        // A compra agora é feita através do PurchaseModal com Stripe
+        // Mantido para compatibilidade, mas recomenda-se usar o fluxo do modal
         
         const updatedUser = {
           ...user,

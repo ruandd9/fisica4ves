@@ -145,8 +145,6 @@ export const apostilas: Apostila[] = [
 
 export const categories = [
   "Todos",
-  "Concursos",
   "Vestibulares",
-  "Direito",
   "ENEM",
 ];

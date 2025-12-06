@@ -17,13 +17,16 @@ const purchaseSchema = new mongoose.Schema({
   },
   paymentMethod: {
     type: String,
-    enum: ['credit_card', 'debit_card', 'pix', 'boleto'],
+    enum: ['credit_card', 'debit_card', 'pix', 'boleto', 'stripe'],
     default: 'credit_card'
   },
   status: {
     type: String,
     enum: ['pending', 'completed', 'failed', 'refunded'],
     default: 'completed'
+  },
+  stripePaymentIntentId: {
+    type: String
   },
   purchaseDate: {
     type: Date,

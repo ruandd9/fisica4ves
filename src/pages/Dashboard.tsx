@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-import { apostilas, Apostila } from '@/data/apostilas';
+import { Apostila } from '@/data/apostilas';
+import { apostilasAPI } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { 
@@ -25,9 +26,51 @@ const Dashboard: React.FC = () => {
   const [searchParams] = useSearchParams();
   const [selectedApostila, setSelectedApostila] = useState<Apostila | null>(null);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
+  const [purchasedApostilas, setPurchasedApostilas] = useState<Apostila[]>([]);
+  const [loadingApostilas, setLoadingApostilas] = useState(true);
 
-  // Get purchased apostilas
-  const purchasedApostilas = apostilas.filter((a) => hasPurchased(a.id));
+  // Fetch purchased apostilas
+  useEffect(() => {
+    const fetchPurchasedApostilas = async () => {
+      if (!user) return;
+      
+      try {
+        const response = await apostilasAPI.getAll();
+        const allApostilas = response.data.data || [];
+        
+        // Filtrar apenas as compradas
+        const purchased = allApostilas
+          .filter((a: any) => user.purchasedApostilas.includes(a._id))
+          .map((a: any) => ({
+            id: a._id,
+            title: a.title,
+            description: a.description,
+            longDescription: a.longDescription,
+            price: a.price,
+            originalPrice: a.originalPrice,
+            category: a.category,
+            cover: a.cover,
+            pages: a.pages,
+            rating: a.rating,
+            reviews: a.reviews,
+            features: a.features,
+            author: a.author,
+            lastUpdate: a.lastUpdate,
+            language: a.language,
+            level: a.level,
+            topics: a.topics
+          }));
+        
+        setPurchasedApostilas(purchased);
+      } catch (error) {
+        console.error('Erro ao buscar apostilas compradas:', error);
+      } finally {
+        setLoadingApostilas(false);
+      }
+    };
+
+    fetchPurchasedApostilas();
+  }, [user]);
 
   // Check if coming from a specific apostila
   React.useEffect(() => {
@@ -41,7 +84,7 @@ const Dashboard: React.FC = () => {
     }
   }, [searchParams, hasPurchased]);
 
-  if (isLoading) {
+  if (isLoading || loadingApostilas) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <LoadingSpinner size="lg" text="Carregando..." />

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { apostilas, Apostila } from '@/data/apostilas';
+import { Apostila } from '@/data/apostilas';
+import { apostilasAPI } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -33,17 +34,66 @@ const ApostilaDetails: React.FC = () => {
   const [apostila, setApostila] = useState<Apostila | null>(null);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const isPurchased = apostila ? hasPurchased(apostila.id) : false;
 
   useEffect(() => {
-    const found = apostilas.find(a => a.id === id);
-    if (found) {
-      setApostila(found);
-    } else {
-      navigate('/catalogo');
-    }
+    const fetchApostila = async () => {
+      if (!id) {
+        navigate('/catalogo');
+        return;
+      }
+
+      try {
+        const response = await apostilasAPI.getById(id);
+        const data = response.data.data || response.data.apostila;
+        
+        if (data) {
+          const mapped: Apostila = {
+            id: data._id,
+            title: data.title,
+            description: data.description,
+            longDescription: data.longDescription,
+            price: data.price,
+            originalPrice: data.originalPrice,
+            category: data.category,
+            cover: data.cover,
+            pages: data.pages,
+            rating: data.rating,
+            reviews: data.reviews,
+            features: data.features,
+            author: data.author,
+            lastUpdate: data.lastUpdate,
+            language: data.language,
+            level: data.level,
+            topics: data.topics
+          };
+          setApostila(mapped);
+        } else {
+          navigate('/catalogo');
+        }
+      } catch (error) {
+        console.error('Erro ao buscar apostila:', error);
+        navigate('/catalogo');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchApostila();
   }, [id, navigate]);
+
+  if (isLoading || !apostila) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Carregando apostila...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!apostila) {
     return (

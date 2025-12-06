@@ -56,7 +56,7 @@ router.post('/register', [
         id: user._id,
         name: user.name,
         email: user.email,
-        purchasedApostilas: user.purchasedApostilas,
+        purchasedApostilas: user.purchasedApostilas.map(id => id.toString()),
         token
       }
     });
@@ -88,7 +88,7 @@ router.post('/login', [
     const { email, password } = req.body;
 
     // Buscar usuário com senha
-    const user = await User.findOne({ email }).select('+password').populate('purchasedApostilas');
+    const user = await User.findOne({ email }).select('+password');
 
     if (!user || !(await user.comparePassword(password))) {
       return res.status(401).json({
@@ -105,7 +105,7 @@ router.post('/login', [
         id: user._id,
         name: user.name,
         email: user.email,
-        purchasedApostilas: user.purchasedApostilas,
+        purchasedApostilas: user.purchasedApostilas.map(id => id.toString()),
         token
       }
     });
@@ -123,7 +123,7 @@ router.post('/login', [
 // @access  Private
 router.get('/me', protect, async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).populate('purchasedApostilas');
+    const user = await User.findById(req.user._id);
     
     res.json({
       success: true,
@@ -131,7 +131,7 @@ router.get('/me', protect, async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
-        purchasedApostilas: user.purchasedApostilas
+        purchasedApostilas: user.purchasedApostilas.map(id => id.toString())
       }
     });
   } catch (error) {

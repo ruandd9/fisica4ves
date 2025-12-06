@@ -63,8 +63,11 @@ export const apostilasAPI = {
 
 // Purchases endpoints
 export const purchasesAPI = {
-  create: (apostilaId: string, paymentMethod?: string) =>
-    api.post('/purchases', { apostilaId, paymentMethod }),
+  createPaymentIntent: (apostilaId: string) =>
+    api.post('/purchases/create-payment-intent', { apostilaId }),
+  
+  confirmPurchase: (apostilaId: string, paymentIntentId: string) =>
+    api.post('/purchases/confirm', { apostilaId, paymentIntentId }),
   
   getUserPurchases: () =>
     api.get('/purchases/user'),

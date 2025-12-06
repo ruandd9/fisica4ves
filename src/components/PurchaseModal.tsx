@@ -3,6 +3,8 @@ import { Apostila } from '@/data/apostilas';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { X, CreditCard, Check, Loader2, ShieldCheck, BookOpen } from 'lucide-react';
+import { purchasesAPI } from '@/services/api';
+import { useToast } from '@/hooks/use-toast';
 
 interface PurchaseModalProps {
   apostila: Apostila | null;
@@ -11,27 +13,80 @@ interface PurchaseModalProps {
 }
 
 const PurchaseModal: React.FC<PurchaseModalProps> = ({ apostila, isOpen, onClose }) => {
-  const { purchaseApostila } = useAuth();
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [useStripe, setUseStripe] = useState(false);
 
   if (!isOpen || !apostila) return null;
 
   const handlePurchase = async () => {
+    if (!user) {
+      toast({
+        title: 'Erro',
+        description: 'Você precisa estar logado para comprar.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsProcessing(true);
     
-    // Simulate payment processing
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    purchaseApostila(apostila.id);
-    setIsProcessing(false);
-    setIsSuccess(true);
-    
-    // Auto close after success
-    setTimeout(() => {
-      setIsSuccess(false);
-      onClose();
-    }, 2000);
+    try {
+      if (useStripe) {
+        // Fluxo com Stripe (modo teste)
+        // 1. Criar Payment Intent
+        const response = await purchasesAPI.createPaymentIntent(apostila.id);
+        const { clientSecret } = response.data;
+        
+        // Simular pagamento bem-sucedido no modo teste
+        // Em produção, você usaria Stripe Elements aqui
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // 2. Confirmar compra (simulando paymentIntentId)
+        const mockPaymentIntentId = `pi_test_${Date.now()}`;
+        await purchasesAPI.confirmPurchase(apostila.id, mockPaymentIntentId);
+      } else {
+        // Fluxo simulado (sem Stripe)
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Criar compra diretamente (para teste sem Stripe)
+        const mockPaymentIntentId = `mock_${Date.now()}`;
+        await purchasesAPI.confirmPurchase(apostila.id, mockPaymentIntentId);
+      }
+      
+      // Atualizar usuário no contexto
+      if (user) {
+        const updatedUser = {
+          ...user,
+          purchasedApostilas: [...user.purchasedApostilas, apostila.id],
+        };
+        localStorage.setItem('auth_user', JSON.stringify(updatedUser));
+      }
+      
+      setIsSuccess(true);
+      
+      toast({
+        title: 'Compra realizada!',
+        description: `Você adquiriu "${apostila.title}" com sucesso.`,
+      });
+      
+      // Auto close after success
+      setTimeout(() => {
+        setIsSuccess(false);
+        onClose();
+        window.location.reload(); // Recarregar para atualizar UI
+      }, 2000);
+    } catch (error: any) {
+      console.error('Erro na compra:', error);
+      toast({
+        title: 'Erro na compra',
+        description: error.response?.data?.message || 'Não foi possível processar a compra.',
+        variant: 'destructive',
+      });
+      setIsProcessing(false);
+    }
   };
 
   const handleClose = () => {
@@ -100,26 +155,37 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({ apostila, isOpen, onClose
               <div className="border border-border rounded-2xl p-4 mb-6">
                 <div className="flex items-center gap-3 mb-3">
                   <CreditCard className="w-5 h-5 text-primary" />
-                  <span className="font-medium text-foreground">Cartão de Crédito</span>
+                  <span className="font-medium text-foreground">Método de Pagamento</span>
                 </div>
+                
                 <div className="space-y-3">
-                  <input
-                    type="text"
-                    placeholder="Número do cartão"
-                    className="w-full px-4 py-3 bg-secondary rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                  <div className="grid grid-cols-2 gap-3">
+                  <label className="flex items-center gap-3 p-3 bg-secondary rounded-xl cursor-pointer hover:bg-secondary/80 transition-colors">
                     <input
-                      type="text"
-                      placeholder="MM/AA"
-                      className="px-4 py-3 bg-secondary rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                      type="radio"
+                      name="payment"
+                      checked={!useStripe}
+                      onChange={() => setUseStripe(false)}
+                      className="w-4 h-4 text-primary"
                     />
+                    <div className="flex-1">
+                      <div className="font-medium text-sm">Pagamento Simulado</div>
+                      <div className="text-xs text-muted-foreground">Para testes (sem cobrança real)</div>
+                    </div>
+                  </label>
+                  
+                  <label className="flex items-center gap-3 p-3 bg-secondary rounded-xl cursor-pointer hover:bg-secondary/80 transition-colors">
                     <input
-                      type="text"
-                      placeholder="CVV"
-                      className="px-4 py-3 bg-secondary rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                      type="radio"
+                      name="payment"
+                      checked={useStripe}
+                      onChange={() => setUseStripe(true)}
+                      className="w-4 h-4 text-primary"
                     />
-                  </div>
+                    <div className="flex-1">
+                      <div className="font-medium text-sm">Stripe (Modo Teste)</div>
+                      <div className="text-xs text-muted-foreground">Pagamento via Stripe Test</div>
+                    </div>
+                  </label>
                 </div>
               </div>
 

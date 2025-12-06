@@ -1,13 +1,18 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ApostilaCard from '@/components/ApostilaCard';
 import PurchaseModal from '@/components/PurchaseModal';
-import { apostilas, categories, Apostila } from '@/data/apostilas';
+import { categories, Apostila } from '@/data/apostilas';
+import { apostilasAPI } from '@/services/api';
 import { Search, SlidersHorizontal, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 
 const Catalogo: React.FC = () => {
+  const { toast } = useToast();
+  const [apostilas, setApostilas] = useState<Apostila[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Todos');
   const [sortBy, setSortBy] = useState<'price' | 'rating' | 'name'>('rating');
@@ -15,8 +20,55 @@ const Catalogo: React.FC = () => {
   const [selectedApostila, setSelectedApostila] = useState<Apostila | null>(null);
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
 
+  useEffect(() => {
+    const fetchApostilas = async () => {
+      try {
+        const response = await apostilasAPI.getAll();
+        console.log('🔍 Response do backend:', response.data);
+        const data = response.data.data || response.data.apostilas || [];
+        console.log('📦 Dados recebidos:', data);
+        
+        // Mapear dados do backend para formato do frontend
+        const mapped = data.map((a: any) => ({
+          id: a._id,
+          title: a.title,
+          description: a.description,
+          longDescription: a.longDescription,
+          price: a.price,
+          originalPrice: a.originalPrice,
+          category: a.category,
+          cover: a.cover,
+          pages: a.pages,
+          rating: a.rating,
+          reviews: a.reviews,
+          features: a.features,
+          author: a.author,
+          lastUpdate: a.lastUpdate,
+          language: a.language,
+          level: a.level,
+          topics: a.topics
+        }));
+        
+        console.log('✅ Apostilas mapeadas:', mapped);
+        setApostilas(mapped);
+      } catch (error) {
+        console.error('❌ Erro ao buscar apostilas:', error);
+        toast({
+          title: 'Erro',
+          description: 'Não foi possível carregar as apostilas.',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchApostilas();
+  }, []);
+
   const filteredApostilas = useMemo(() => {
     let result = [...apostilas];
+    console.log('📚 Total apostilas:', apostilas.length, 'Categoria selecionada:', selectedCategory);
 
     // Filter by search
     if (searchQuery) {
@@ -33,6 +85,8 @@ const Catalogo: React.FC = () => {
     if (selectedCategory !== 'Todos') {
       result = result.filter((a) => a.category === selectedCategory);
     }
+    
+    console.log('✅ Apostilas filtradas:', result.length);
 
     // Sort
     switch (sortBy) {
@@ -48,12 +102,27 @@ const Catalogo: React.FC = () => {
     }
 
     return result;
-  }, [searchQuery, selectedCategory, sortBy]);
+  }, [apostilas, searchQuery, selectedCategory, sortBy]);
 
   const handlePurchase = (apostila: Apostila) => {
     setSelectedApostila(apostila);
     setIsPurchaseModalOpen(true);
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <Navbar />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Carregando apostilas...</p>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-background">

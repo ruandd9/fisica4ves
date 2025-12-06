@@ -114,9 +114,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const purchaseApostila = async (apostilaId: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      const response = await purchasesAPI.create(apostilaId, 'credit_card');
+      // 1. Criar Payment Intent
+      const paymentResponse = await purchasesAPI.createPaymentIntent(apostilaId);
       
-      if (response.data.success && user) {
+      if (!paymentResponse.data.success) {
+        return { success: false, error: 'Erro ao criar pagamento' };
+      }
+      
+      // 2. Simular pagamento bem-sucedido (em produção, use Stripe Elements)
+      const mockPaymentIntentId = `pi_mock_${Date.now()}`;
+      
+      // 3. Confirmar compra
+      const confirmResponse = await purchasesAPI.confirmPurchase(apostilaId, mockPaymentIntentId);
+      
+      if (confirmResponse.data.success && user) {
         // Atualizar lista de apostilas compradas
         const updatedUser = {
           ...user,
