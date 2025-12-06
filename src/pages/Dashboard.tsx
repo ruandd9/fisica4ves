@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { Apostila } from '@/data/apostilas';
-import { apostilasAPI } from '@/services/api';
+import { apostilasAPI, purchasesAPI } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { 
@@ -18,8 +18,19 @@ import {
   Play,
   FileText,
   Lock,
-  X
+  X,
+  Calendar,
+  CreditCard
 } from 'lucide-react';
+
+interface Purchase {
+  _id: string;
+  apostila: any;
+  price: number;
+  purchaseDate: string;
+  paymentMethod: string;
+  status: string;
+}
 
 const Dashboard: React.FC = () => {
   const { user, isLoading, hasPurchased } = useAuth();
@@ -27,7 +38,9 @@ const Dashboard: React.FC = () => {
   const [selectedApostila, setSelectedApostila] = useState<Apostila | null>(null);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [purchasedApostilas, setPurchasedApostilas] = useState<Apostila[]>([]);
+  const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [loadingApostilas, setLoadingApostilas] = useState(true);
+  const [activeTab, setActiveTab] = useState<'apostilas' | 'compras'>('apostilas');
 
   // Fetch purchased apostilas
   useEffect(() => {
@@ -72,17 +85,46 @@ const Dashboard: React.FC = () => {
     fetchPurchasedApostilas();
   }, [user]);
 
+  // Fetch purchases history
+  useEffect(() => {
+    const fetchPurchases = async () => {
+      if (!user) return;
+      
+      try {
+        const response = await purchasesAPI.getUserPurchases();
+        const data = response.data.data || [];
+        setPurchases(data);
+      } catch (error) {
+        console.error('Erro ao buscar histórico de compras:', error);
+      }
+    };
+
+    fetchPurchases();
+  }, [user]);
+
   // Check if coming from a specific apostila
   React.useEffect(() => {
     const apostilaId = searchParams.get('apostila');
-    if (apostilaId) {
-      const found = apostilas.find((a) => a.id === apostilaId);
-      if (found && hasPurchased(found.id)) {
-        setSelectedApostila(found);
-        setIsViewerOpen(true);
+    if (apostilaId && purchasedApostilas.length > 0) {
+      const found = purchasedApostilas.find((a) => a.id === apostilaId);
+      if (found) {
+        // Garantir que está na tab de apostilas
+        setActiveTab('apostilas');
+        // Scroll suave até a seção
+        setTimeout(() => {
+          const element = document.getElementById(`apostila-${apostilaId}`);
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // Highlight temporário
+            element.classList.add('ring-2', 'ring-primary', 'ring-offset-2');
+            setTimeout(() => {
+              element.classList.remove('ring-2', 'ring-primary', 'ring-offset-2');
+            }, 2000);
+          }
+        }, 100);
       }
     }
-  }, [searchParams, hasPurchased]);
+  }, [searchParams, purchasedApostilas]);
 
   if (isLoading || loadingApostilas) {
     return (
@@ -138,16 +180,46 @@ const Dashboard: React.FC = () => {
             ))}
           </div>
 
-          {/* Content */}
-          {purchasedApostilas.length > 0 ? (
+          {/* Tabs */}
+          <div className="flex gap-4 mb-8 border-b border-border">
+            <button
+              onClick={() => setActiveTab('apostilas')}
+              className={`pb-3 px-4 font-medium transition-colors relative ${
+                activeTab === 'apostilas'
+                  ? 'text-primary'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <BookOpen className="w-4 h-4 inline mr-2" />
+              Minhas Apostilas
+              {activeTab === 'apostilas' && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab('compras')}
+              className={`pb-3 px-4 font-medium transition-colors relative ${
+                activeTab === 'compras'
+                  ? 'text-primary'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <ShoppingBag className="w-4 h-4 inline mr-2" />
+              Minhas Compras
+              {activeTab === 'compras' && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+              )}
+            </button>
+          </div>
+
+          {/* Content - Apostilas */}
+          {activeTab === 'apostilas' && purchasedApostilas.length > 0 && (
             <div>
-              <h2 className="text-xl font-bold text-foreground mb-4">
-                Minhas Apostilas
-              </h2>
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {purchasedApostilas.map((apostila, index) => (
                   <div
                     key={apostila.id}
+                    id={`apostila-${apostila.id}`}
                     className="bg-card rounded-2xl border border-border overflow-hidden hover:shadow-lg transition-all duration-300 animate-fade-in-up"
                     style={{ animationDelay: `${index * 0.1}s` }}
                   >
@@ -205,11 +277,13 @@ const Dashboard: React.FC = () => {
                 ))}
               </div>
             </div>
-          ) : (
-            /* Empty State */
+          )}
+
+          {/* Empty State - Apostilas */}
+          {activeTab === 'apostilas' && purchasedApostilas.length === 0 && (
             <div className="text-center py-16">
               <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-secondary flex items-center justify-center">
-                <ShoppingBag className="w-10 h-10 text-muted-foreground" />
+                <BookOpen className="w-10 h-10 text-muted-foreground" />
               </div>
               <h2 className="text-2xl font-bold text-foreground mb-2">
                 Nenhuma apostila ainda
@@ -217,6 +291,92 @@ const Dashboard: React.FC = () => {
               <p className="text-muted-foreground mb-6 max-w-md mx-auto">
                 Você ainda não adquiriu nenhuma apostila. Explore nosso catálogo 
                 e comece seus estudos hoje mesmo!
+              </p>
+              <Button
+                onClick={() => window.location.href = '/catalogo'}
+                className="gradient-primary text-primary-foreground rounded-xl gap-2"
+              >
+                Ver Catálogo
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+          )}
+
+          {/* Content - Compras */}
+          {activeTab === 'compras' && purchases.length > 0 && (
+            <div>
+              <div className="space-y-4">
+                {purchases.map((purchase) => (
+                  <div
+                    key={purchase._id}
+                    className="bg-card rounded-2xl border border-border p-6 hover:shadow-lg transition-all duration-300"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                            <BookOpen className="w-6 h-6 text-primary" />
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-foreground">
+                              {purchase.apostila?.title || 'Apostila'}
+                            </h3>
+                            <p className="text-sm text-muted-foreground">
+                              {purchase.apostila?.category}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex flex-wrap gap-4 mt-4 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4" />
+                            {new Date(purchase.purchaseDate).toLocaleDateString('pt-BR', {
+                              day: '2-digit',
+                              month: 'long',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <CreditCard className="w-4 h-4" />
+                            {purchase.paymentMethod === 'stripe' ? 'Cartão de Crédito' : 'Simulado'}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              purchase.status === 'completed' 
+                                ? 'bg-success/10 text-success' 
+                                : 'bg-muted text-muted-foreground'
+                            }`}>
+                              {purchase.status === 'completed' ? 'Concluído' : purchase.status}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="text-right">
+                        <div className="text-2xl font-bold text-primary">
+                          R$ {purchase.price.toFixed(2)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Empty State - Compras */}
+          {activeTab === 'compras' && purchases.length === 0 && (
+            <div className="text-center py-16">
+              <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-secondary flex items-center justify-center">
+                <ShoppingBag className="w-10 h-10 text-muted-foreground" />
+              </div>
+              <h2 className="text-2xl font-bold text-foreground mb-2">
+                Nenhuma compra realizada
+              </h2>
+              <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                Você ainda não realizou nenhuma compra. Explore nosso catálogo!
               </p>
               <Button
                 onClick={() => window.location.href = '/catalogo'}
