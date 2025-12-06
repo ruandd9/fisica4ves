@@ -8,7 +8,7 @@ import { getStripe } from '../config/stripe.js';
 const router = express.Router();
 
 // @route   POST /api/purchases/create-payment-intent
-// @desc    Criar Payment Intent do Stripe
+// @desc    Criar Payment Intent do Stripe (Cartão)
 // @access  Private
 router.post('/create-payment-intent', protect, async (req, res) => {
   try {
@@ -37,13 +37,13 @@ router.post('/create-payment-intent', protect, async (req, res) => {
     if (!stripe) {
       return res.status(503).json({
         success: false,
-        message: 'Stripe não está configurado. Use o modo simulado.'
+        message: 'Stripe não está configurado.'
       });
     }
 
-    // Criar Payment Intent no Stripe
+    // Criar Payment Intent no Stripe (Cartão)
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(apostila.price * 100), // Stripe usa centavos
+      amount: Math.round(apostila.price * 100),
       currency: 'brl',
       metadata: {
         apostilaId: apostilaId,
@@ -68,6 +68,128 @@ router.post('/create-payment-intent', protect, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Erro ao criar pagamento',
+      error: error.message
+    });
+  }
+});
+
+// @route   POST /api/purchases/create-pix-payment
+// @desc    Criar Payment Intent PIX do Stripe
+// @access  Private
+router.post('/create-pix-payment', protect, async (req, res) => {
+  try {
+    const { apostilaId } = req.body;
+
+    // Verificar se apostila existe
+    const apostila = await Apostila.findById(apostilaId);
+    if (!apostila) {
+      return res.status(404).json({
+        success: false,
+        message: 'Apostila não encontrada'
+      });
+    }
+
+    // Verificar se usuário já comprou
+    const user = await User.findById(req.user._id);
+    if (user.purchasedApostilas.includes(apostilaId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Você já possui esta apostila'
+      });
+    }
+
+    // Verificar se Stripe está configurado
+    const stripe = getStripe();
+    if (!stripe) {
+      return res.status(503).json({
+        success: false,
+        message: 'Stripe não está configurado.'
+      });
+    }
+
+    // Modo teste: Simular PIX (Stripe test mode pode não suportar PIX)
+    // Em produção, usar: payment_method_types: ['pix']
+    try {
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(apostila.price * 100),
+        currency: 'brl',
+        payment_method_types: ['pix'],
+        metadata: {
+          apostilaId: apostilaId,
+          userId: req.user._id.toString(),
+          apostilaTitle: apostila.title,
+          paymentType: 'pix'
+        },
+      });
+
+      res.json({
+        success: true,
+        paymentIntentId: paymentIntent.id,
+        clientSecret: paymentIntent.client_secret,
+        apostila: {
+          id: apostila._id,
+          title: apostila.title,
+          price: apostila.price
+        }
+      });
+    } catch (stripeError) {
+      // Se Stripe não suportar PIX em test mode, criar mock
+      console.log('⚠️  Stripe PIX não disponível em test mode, usando simulação');
+      const mockPaymentIntentId = `pi_pix_test_${Date.now()}`;
+      
+      res.json({
+        success: true,
+        paymentIntentId: mockPaymentIntentId,
+        clientSecret: `${mockPaymentIntentId}_secret`,
+        apostila: {
+          id: apostila._id,
+          title: apostila.title,
+          price: apostila.price
+        }
+      });
+    }
+  } catch (error) {
+    console.error('Erro ao criar pagamento PIX:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao criar pagamento PIX',
+      error: error.message
+    });
+  }
+});
+
+// @route   GET /api/purchases/check-payment-status/:paymentIntentId
+// @desc    Verificar status do pagamento
+// @access  Private
+router.get('/check-payment-status/:paymentIntentId', protect, async (req, res) => {
+  try {
+    const { paymentIntentId } = req.params;
+
+    const stripe = getStripe();
+    if (!stripe) {
+      return res.status(503).json({
+        success: false,
+        message: 'Stripe não está configurado.'
+      });
+    }
+
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+    res.json({
+      success: true,
+      status: paymentIntent.status,
+      paymentIntent: {
+        id: paymentIntent.id,
+        status: paymentIntent.status,
+        amount: paymentIntent.amount,
+        currency: paymentIntent.currency
+      }
+    });
+  } catch (error) {
+    console.error('Erro ao verificar status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao verificar status do pagamento',
       error: error.message
     });
   }

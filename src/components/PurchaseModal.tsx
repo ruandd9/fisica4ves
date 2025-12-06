@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Apostila } from '@/data/apostilas';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { X, CreditCard, Check, Loader2, ShieldCheck, BookOpen } from 'lucide-react';
+import { X, CreditCard, Check, Loader2, ShieldCheck, BookOpen, QrCode } from 'lucide-react';
 import { purchasesAPI } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
 import { Elements } from '@stripe/react-stripe-js';
 import { getStripe } from '@/lib/stripe';
 import { StripePaymentForm } from './StripePaymentForm';
+import { PixPaymentForm } from './PixPaymentForm';
 
 interface PurchaseModalProps {
   apostila: Apostila | null;
@@ -15,14 +16,17 @@ interface PurchaseModalProps {
   onClose: () => void;
 }
 
+type PaymentMethod = 'stripe' | 'pix' | null;
+
 const PurchaseModal: React.FC<PurchaseModalProps> = ({ apostila, isOpen, onClose }) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const [useStripe, setUseStripe] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [showStripeForm, setShowStripeForm] = useState(false);
+  const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
   const stripePromise = getStripe();
 
   if (!isOpen || !apostila) return null;
@@ -37,23 +41,31 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({ apostila, isOpen, onClose
       return;
     }
 
+    if (!paymentMethod) {
+      toast({
+        title: 'Selecione um método',
+        description: 'Escolha como deseja pagar.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsProcessing(true);
     
     try {
-      if (useStripe) {
-        // Criar Payment Intent e mostrar formulário Stripe
+      if (paymentMethod === 'stripe') {
+        // Criar Payment Intent Cartão
         const response = await purchasesAPI.createPaymentIntent(apostila.id);
         setClientSecret(response.data.clientSecret);
-        setShowStripeForm(true);
+        setShowPaymentForm(true);
         setIsProcessing(false);
-      } else {
-        // Fluxo simulado (sem Stripe)
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        const mockPaymentIntentId = `mock_${Date.now()}`;
-        await purchasesAPI.confirmPurchase(apostila.id, mockPaymentIntentId);
-        
-        handleSuccess();
+      } else if (paymentMethod === 'pix') {
+        // Criar Payment Intent PIX
+        const response = await purchasesAPI.createPixPayment(apostila.id);
+        setClientSecret(response.data.clientSecret);
+        setPaymentIntentId(response.data.paymentIntentId);
+        setShowPaymentForm(true);
+        setIsProcessing(false);
       }
       
     } catch (error: any) {
@@ -87,8 +99,9 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({ apostila, isOpen, onClose
     // Auto close after success
     setTimeout(() => {
       setIsSuccess(false);
-      setShowStripeForm(false);
+      setShowPaymentForm(false);
       setClientSecret(null);
+      setPaymentIntentId(null);
       onClose();
       window.location.reload();
     }, 2000);
@@ -177,20 +190,37 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({ apostila, isOpen, onClose
                 </div>
               </div>
 
-              {/* Stripe Payment Form */}
-              {showStripeForm && clientSecret && stripePromise ? (
-                <Elements stripe={stripePromise} options={{ clientSecret }}>
-                  <StripePaymentForm
-                    clientSecret={clientSecret}
-                    amount={apostila.price}
-                    onSuccess={handleStripeSuccess}
-                    onError={handleStripeError}
-                    onCancel={() => {
-                      setShowStripeForm(false);
-                      setClientSecret(null);
-                    }}
-                  />
-                </Elements>
+              {/* Payment Forms */}
+              {showPaymentForm && clientSecret ? (
+                <>
+                  {paymentMethod === 'stripe' && stripePromise ? (
+                    <Elements stripe={stripePromise} options={{ clientSecret }}>
+                      <StripePaymentForm
+                        clientSecret={clientSecret}
+                        amount={apostila.price}
+                        onSuccess={handleStripeSuccess}
+                        onError={handleStripeError}
+                        onCancel={() => {
+                          setShowPaymentForm(false);
+                          setClientSecret(null);
+                        }}
+                      />
+                    </Elements>
+                  ) : paymentMethod === 'pix' && paymentIntentId ? (
+                    <PixPaymentForm
+                      paymentIntentId={paymentIntentId}
+                      clientSecret={clientSecret}
+                      amount={apostila.price}
+                      onSuccess={handleStripeSuccess}
+                      onError={handleStripeError}
+                      onCancel={() => {
+                        setShowPaymentForm(false);
+                        setClientSecret(null);
+                        setPaymentIntentId(null);
+                      }}
+                    />
+                  ) : null}
+                </>
               ) : (
                 <>
                   {/* Payment Method */}
@@ -205,13 +235,14 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({ apostila, isOpen, onClose
                     <input
                       type="radio"
                       name="payment"
-                      checked={!useStripe}
-                      onChange={() => setUseStripe(false)}
+                      checked={paymentMethod === 'pix'}
+                      onChange={() => setPaymentMethod('pix')}
                       className="w-4 h-4 text-primary"
                     />
+                    <QrCode className="w-5 h-5 text-primary" />
                     <div className="flex-1">
-                      <div className="font-medium text-sm">Pagamento Simulado</div>
-                      <div className="text-xs text-muted-foreground">Para testes (sem cobrança real)</div>
+                      <div className="font-medium text-sm">PIX</div>
+                      <div className="text-xs text-muted-foreground">Pagamento instantâneo via QR Code</div>
                     </div>
                   </label>
                   
@@ -219,13 +250,14 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({ apostila, isOpen, onClose
                     <input
                       type="radio"
                       name="payment"
-                      checked={useStripe}
-                      onChange={() => setUseStripe(true)}
+                      checked={paymentMethod === 'stripe'}
+                      onChange={() => setPaymentMethod('stripe')}
                       className="w-4 h-4 text-primary"
                     />
+                    <CreditCard className="w-5 h-5 text-primary" />
                     <div className="flex-1">
-                      <div className="font-medium text-sm">Stripe (Modo Teste)</div>
-                      <div className="text-xs text-muted-foreground">Pagamento via Stripe Test</div>
+                      <div className="font-medium text-sm">Cartão de Crédito</div>
+                      <div className="text-xs text-muted-foreground">Pagamento via Stripe (Modo Teste)</div>
                     </div>
                   </label>
                 </div>
