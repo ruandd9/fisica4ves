@@ -19,7 +19,8 @@ import {
   FileText,
   Calendar,
   CreditCard,
-  X
+  X,
+  Shield
 } from 'lucide-react';
 
 interface Purchase {
@@ -212,13 +213,24 @@ const Dashboard: React.FC = () => {
       <main className="flex-1 py-8">
         <div className="container mx-auto px-4">
           {/* Header */}
-          <div className="mb-8 animate-fade-in">
-            <h1 className="text-3xl font-bold text-foreground mb-2">
-              Olá, {user.name.split(' ')[0]}! 👋
-            </h1>
-            <p className="text-muted-foreground">
-              Acesse suas apostilas adquiridas e continue seus estudos
-            </p>
+          <div className="mb-8 animate-fade-in flex items-start justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-foreground mb-2">
+                Olá, {user.name.split(' ')[0]}! 👋
+              </h1>
+              <p className="text-muted-foreground">
+                Acesse suas apostilas adquiridas e continue seus estudos
+              </p>
+            </div>
+            {user.isAdmin && (
+              <Button
+                onClick={() => window.location.href = '/admin'}
+                className="gap-2 gradient-primary text-primary-foreground"
+              >
+                <Shield className="w-4 h-4" />
+                Painel Admin
+              </Button>
+            )}
           </div>
 
           {/* Stats */}

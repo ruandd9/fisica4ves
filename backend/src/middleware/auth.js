@@ -34,3 +34,13 @@ export const protect = async (req, res, next) => {
     });
   }
 };
+
+export const adminOnly = async (req, res, next) => {
+  if (!req.user || !req.user.isAdmin) {
+    return res.status(403).json({
+      success: false,
+      message: 'Acesso negado. Apenas administradores.'
+    });
+  }
+  next();
+};

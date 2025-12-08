@@ -6,6 +6,7 @@ interface User {
   name: string;
   email: string;
   purchasedApostilas: string[];
+  isAdmin?: boolean;
 }
 
 interface AuthContextType {
@@ -50,6 +51,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           name: userData.name,
           email: userData.email,
           purchasedApostilas: userData.purchasedApostilas || [],
+          isAdmin: userData.isAdmin || false,
         };
         
         localStorage.setItem('auth_token', authToken);
@@ -83,6 +85,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           name: userData.name,
           email: userData.email,
           purchasedApostilas: userData.purchasedApostilas || [],
+          isAdmin: userData.isAdmin || false,
         };
         
         localStorage.setItem('auth_token', authToken);

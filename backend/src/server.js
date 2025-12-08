@@ -5,6 +5,7 @@ import connectDB from './config/database.js';
 import authRoutes from './routes/auth.js';
 import apostilasRoutes from './routes/apostilas.js';
 import purchasesRoutes from './routes/purchases.js';
+import usersRoutes from './routes/users.js';
 
 // Carregar variáveis de ambiente
 dotenv.config();
@@ -26,6 +27,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api/apostilas', apostilasRoutes);
 app.use('/api/purchases', purchasesRoutes);
+app.use('/api/users', usersRoutes);
 
 // Rota de teste
 app.get('/', (req, res) => {

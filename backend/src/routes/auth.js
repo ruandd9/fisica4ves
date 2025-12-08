@@ -57,6 +57,7 @@ router.post('/register', [
         name: user.name,
         email: user.email,
         purchasedApostilas: user.purchasedApostilas.map(id => id.toString()),
+        isAdmin: user.isAdmin || false,
         token
       }
     });
@@ -106,6 +107,7 @@ router.post('/login', [
         name: user.name,
         email: user.email,
         purchasedApostilas: user.purchasedApostilas.map(id => id.toString()),
+        isAdmin: user.isAdmin || false,
         token
       }
     });
@@ -131,7 +133,8 @@ router.get('/me', protect, async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
-        purchasedApostilas: user.purchasedApostilas.map(id => id.toString())
+        purchasedApostilas: user.purchasedApostilas.map(id => id.toString()),
+        isAdmin: user.isAdmin || false
       }
     });
   } catch (error) {
