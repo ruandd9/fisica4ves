@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -27,6 +27,29 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, title }) => {
   const [scale, setScale] = useState<number>(1.0);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [containerWidth, setContainerWidth] = useState<number>(0);
+
+  // Detectar largura da tela e ajustar scale inicial
+  useEffect(() => {
+    const updateWidth = () => {
+      const width = window.innerWidth;
+      setContainerWidth(width);
+      // Ajustar scale inicial baseado na largura
+      if (width < 640) {
+        setScale(0.4); // Mobile pequeno
+      } else if (width < 768) {
+        setScale(0.5); // Mobile
+      } else if (width < 1024) {
+        setScale(0.7); // Tablet
+      } else {
+        setScale(1.0); // Desktop
+      }
+    };
+
+    updateWidth();
+    window.addEventListener('resize', updateWidth);
+    return () => window.removeEventListener('resize', updateWidth);
+  }, []);
 
   console.log('PDFViewer - pdfUrl:', pdfUrl);
   console.log('PDFViewer - title:', title);
@@ -71,22 +94,23 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, title }) => {
   return (
     <div className={`flex flex-col ${isFullscreen ? 'fixed inset-0 z-50 bg-background' : 'h-full'}`}>
       {/* Toolbar */}
-      <div className="flex items-center justify-between p-4 bg-card border-b border-border">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col md:flex-row items-center justify-between gap-2 p-2 md:p-4 bg-card border-b border-border">
+        {/* Navegação de páginas */}
+        <div className="flex items-center gap-1 md:gap-2 w-full md:w-auto justify-center">
           <Button
             variant="outline"
             size="sm"
             onClick={goToPrevPage}
             disabled={pageNumber <= 1}
-            className="gap-1"
+            className="gap-1 h-8 px-2 md:px-3"
           >
             <ChevronLeft className="w-4 h-4" />
-            Anterior
+            <span className="hidden sm:inline">Anterior</span>
           </Button>
           
-          <div className="px-4 py-2 bg-secondary rounded-lg">
-            <span className="text-sm font-medium">
-              Página {pageNumber} de {numPages || '...'}
+          <div className="px-2 md:px-4 py-1 md:py-2 bg-secondary rounded-lg">
+            <span className="text-xs md:text-sm font-medium whitespace-nowrap">
+              {pageNumber} / {numPages || '...'}
             </span>
           </div>
 
@@ -95,24 +119,26 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, title }) => {
             size="sm"
             onClick={goToNextPage}
             disabled={pageNumber >= numPages}
-            className="gap-1"
+            className="gap-1 h-8 px-2 md:px-3"
           >
-            Próxima
+            <span className="hidden sm:inline">Próxima</span>
             <ChevronRight className="w-4 h-4" />
           </Button>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Controles de zoom e ações */}
+        <div className="flex items-center gap-1 md:gap-2 w-full md:w-auto justify-center">
           <Button
             variant="outline"
             size="sm"
             onClick={zoomOut}
             disabled={scale <= 0.5}
+            className="h-8 px-2"
           >
             <ZoomOut className="w-4 h-4" />
           </Button>
           
-          <span className="text-sm font-medium px-3">
+          <span className="text-xs md:text-sm font-medium px-2 min-w-[50px] text-center">
             {Math.round(scale * 100)}%
           </span>
 
@@ -121,16 +147,18 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, title }) => {
             size="sm"
             onClick={zoomIn}
             disabled={scale >= 2.0}
+            className="h-8 px-2"
           >
             <ZoomIn className="w-4 h-4" />
           </Button>
 
-          <div className="w-px h-6 bg-border mx-2" />
+          <div className="w-px h-6 bg-border mx-1 hidden md:block" />
 
           <Button
             variant="outline"
             size="sm"
             onClick={toggleFullscreen}
+            className="h-8 px-2 hidden md:flex"
           >
             {isFullscreen ? (
               <Minimize2 className="w-4 h-4" />
@@ -143,10 +171,10 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, title }) => {
             variant="outline"
             size="sm"
             onClick={handleDownload}
-            className="gap-2"
+            className="gap-1 md:gap-2 h-8 px-2 md:px-3"
           >
             <Download className="w-4 h-4" />
-            Baixar
+            <span className="hidden sm:inline">Baixar</span>
           </Button>
         </div>
       </div>
@@ -164,25 +192,26 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, title }) => {
               onLoadSuccess={onDocumentLoadSuccess}
               onLoadError={onDocumentLoadError}
               loading={
-                <div className="flex items-center justify-center p-20">
+                <div className="flex items-center justify-center p-10 md:p-20">
                   <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                  <p className="ml-2">Carregando PDF...</p>
+                  <p className="ml-2 text-sm md:text-base">Carregando PDF...</p>
                 </div>
               }
               error={
-                <div className="flex flex-col items-center justify-center p-20 text-destructive">
-                  <p>Erro ao carregar PDF.</p>
-                  <p className="text-sm mt-2">URL: {pdfUrl}</p>
+                <div className="flex flex-col items-center justify-center p-10 md:p-20 text-destructive">
+                  <p className="text-sm md:text-base">Erro ao carregar PDF.</p>
+                  <p className="text-xs md:text-sm mt-2 break-all px-4">URL: {pdfUrl}</p>
                 </div>
               }
             >
               <Page
                 pageNumber={pageNumber}
                 scale={scale}
+                width={containerWidth < 768 ? Math.min(containerWidth - 32, 600) : undefined}
                 renderTextLayer={false}
                 renderAnnotationLayer={false}
                 loading={
-                  <div className="flex items-center justify-center p-20">
+                  <div className="flex items-center justify-center p-10 md:p-20">
                     <Loader2 className="w-8 h-8 animate-spin text-primary" />
                   </div>
                 }
@@ -192,8 +221,8 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, title }) => {
         </div>
       </div>
 
-      {/* Page Navigation (Bottom) */}
-      <div className="flex items-center justify-center gap-2 p-4 bg-card border-t border-border">
+      {/* Page Navigation (Bottom) - Hidden on mobile */}
+      <div className="hidden md:flex items-center justify-center gap-2 p-4 bg-card border-t border-border">
         <Button
           variant="ghost"
           size="sm"

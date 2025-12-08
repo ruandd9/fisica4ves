@@ -152,6 +152,35 @@
   .animate-pulse-soft {
     animation: pulseSoft 2s ease-in-out infinite;
   }
+
+  .animate-float {
+    animation: float 4s ease-in-out infinite;
+    will-change: transform;
+  }
+
+  .animate-float-delayed {
+    animation: float 5s ease-in-out infinite;
+    animation-delay: 0.5s;
+    will-change: transform;
+  }
+
+  .animate-float-slow {
+    animation: float 6s ease-in-out infinite;
+    animation-delay: 1s;
+    will-change: transform;
+  }
+
+  .stat-number {
+    display: inline-block;
+    background: linear-gradient(135deg, hsl(217 91% 55%), hsl(199 89% 58%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .stat-glow {
+    filter: drop-shadow(0 4px 12px hsl(217 91% 55% / 0.35));
+  }
 }
 
 @keyframes fadeIn {
@@ -160,6 +189,15 @@
   }
   to {
     opacity: 1;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
   }
 }
 

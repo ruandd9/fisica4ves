@@ -72,21 +72,21 @@ const PDFViewerModal: React.FC<PDFViewerModalProps> = ({ isOpen, onClose, aposti
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="relative bg-background rounded-3xl shadow-2xl w-[95vw] h-[90vh] overflow-hidden flex flex-col"
+            className="relative bg-background rounded-2xl md:rounded-3xl shadow-2xl w-full md:w-[95vw] h-[100vh] md:h-[90vh] overflow-hidden flex flex-col"
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-border bg-card">
-              <div>
-                <h2 className="text-xl font-bold text-foreground">{apostila.title}</h2>
-                <p className="text-sm text-muted-foreground">{apostila.author}</p>
+            <div className="flex items-center justify-between p-3 md:p-4 border-b border-border bg-card">
+              <div className="flex-1 min-w-0 mr-2">
+                <h2 className="text-base md:text-xl font-bold text-foreground truncate">{apostila.title}</h2>
+                <p className="text-xs md:text-sm text-muted-foreground truncate">{apostila.author}</p>
               </div>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={onClose}
-                className="rounded-full"
+                className="rounded-full flex-shrink-0 h-8 w-8 md:h-10 md:w-10 p-0"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4 md:w-5 md:h-5" />
               </Button>
             </div>
 

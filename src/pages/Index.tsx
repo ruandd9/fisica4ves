@@ -71,17 +71,23 @@ const Index: React.FC = () => {
 
             {/* Stats */}
             <div className="grid grid-cols-3 gap-8 mt-16 pt-8 border-t border-border animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
-              <div>
-                <p className="text-3xl font-bold text-primary">15k+</p>
-                <p className="text-muted-foreground text-sm">Alunos aprovados</p>
+              <div className="text-center">
+                <div className="stat-glow">
+                  <p className="text-4xl md:text-5xl font-extrabold stat-number animate-float">15k+</p>
+                </div>
+                <p className="text-muted-foreground text-sm mt-3">Alunos aprovados</p>
               </div>
-              <div>
-                <p className="text-3xl font-bold text-primary">50+</p>
-                <p className="text-muted-foreground text-sm">Apostilas</p>
+              <div className="text-center">
+                <div className="stat-glow">
+                  <p className="text-4xl md:text-5xl font-extrabold stat-number animate-float-delayed">50+</p>
+                </div>
+                <p className="text-muted-foreground text-sm mt-3">Apostilas</p>
               </div>
-              <div>
-                <p className="text-3xl font-bold text-primary">4.9</p>
-                <p className="text-muted-foreground text-sm">Avaliação média</p>
+              <div className="text-center">
+                <div className="stat-glow">
+                  <p className="text-4xl md:text-5xl font-extrabold stat-number animate-float-slow">4.9</p>
+                </div>
+                <p className="text-muted-foreground text-sm mt-3">Avaliação média</p>
               </div>
             </div>
           </div>
