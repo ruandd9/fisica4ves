@@ -92,7 +92,7 @@ const PDFViewerModal: React.FC<PDFViewerModalProps> = ({ isOpen, onClose, aposti
 
             {/* PDF Viewer */}
             <div className="flex-1 overflow-hidden">
-              <PDFViewer pdfUrl={apostila.pdfUrl} title={apostila.title} />
+              <PDFViewer pdfUrl={apostila.pdfUrl} title={apostila.title} apostilaId={apostila.id} />
             </div>
           </motion.div>
         </div>

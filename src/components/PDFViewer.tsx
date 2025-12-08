@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { 
   ChevronLeft, 
@@ -10,7 +10,8 @@ import {
   Download,
   Maximize2,
   Minimize2,
-  Loader2
+  Loader2,
+  BookmarkCheck
 } from 'lucide-react';
 
 // Configurar o worker do PDF.js usando arquivo local
@@ -19,14 +20,34 @@ pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
 interface PDFViewerProps {
   pdfUrl: string;
   title?: string;
+  apostilaId?: string;
 }
 
-const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, title }) => {
+const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, title, apostilaId }) => {
   const [numPages, setNumPages] = useState<number>(0);
-  const [pageNumber, setPageNumber] = useState<number>(1);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [containerWidth, setContainerWidth] = useState<number>(0);
+
+  // Carregar última página vista do localStorage
+  const getStorageKey = () => {
+    const user = localStorage.getItem('auth_user');
+    const userId = user ? JSON.parse(user).id : 'guest';
+    return `pdf_progress_${userId}_${apostilaId}`;
+  };
+
+  const getSavedPage = (): number => {
+    if (!apostilaId) return 1;
+    try {
+      const saved = localStorage.getItem(getStorageKey());
+      return saved ? parseInt(saved, 10) : 1;
+    } catch {
+      return 1;
+    }
+  };
+
+  const [pageNumber, setPageNumber] = useState<number>(getSavedPage());
+  const [showProgressRestored, setShowProgressRestored] = useState<boolean>(false);
   
   // Calcular scale inicial baseado na largura
   const getInitialScale = (width: number) => {
@@ -40,6 +61,15 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, title }) => {
     typeof window !== 'undefined' ? getInitialScale(window.innerWidth) : 1.0
   );
 
+  // Mostrar notificação se progresso foi restaurado
+  useEffect(() => {
+    const savedPage = getSavedPage();
+    if (savedPage > 1) {
+      setShowProgressRestored(true);
+      setTimeout(() => setShowProgressRestored(false), 3000);
+    }
+  }, []);
+
   // Atualizar apenas containerWidth no resize, não o scale
   useEffect(() => {
     const updateWidth = () => {
@@ -51,6 +81,18 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, title }) => {
     return () => window.removeEventListener('resize', updateWidth);
   }, []);
 
+  // Salvar progresso quando a página mudar
+  useEffect(() => {
+    if (!apostilaId || pageNumber === 0) return;
+    
+    try {
+      localStorage.setItem(getStorageKey(), pageNumber.toString());
+      console.log(`Progresso salvo: Página ${pageNumber} da apostila ${apostilaId}`);
+    } catch (error) {
+      console.error('Erro ao salvar progresso:', error);
+    }
+  }, [pageNumber, apostilaId]);
+
   console.log('PDFViewer - pdfUrl:', pdfUrl);
   console.log('PDFViewer - title:', title);
 
@@ -58,6 +100,15 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, title }) => {
     console.log('PDF carregado com sucesso! Páginas:', numPages);
     setNumPages(numPages);
     setIsLoading(false);
+    
+    // Salvar número real de páginas do PDF
+    if (apostilaId) {
+      const user = localStorage.getItem('auth_user');
+      const userId = user ? JSON.parse(user).id : 'guest';
+      const pagesKey = `pdf_real_pages_${userId}_${apostilaId}`;
+      localStorage.setItem(pagesKey, numPages.toString());
+      console.log(`Páginas reais salvas: ${numPages} para apostila ${apostilaId}`);
+    }
   };
 
   const onDocumentLoadError = (error: Error) => {
@@ -93,6 +144,21 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ pdfUrl, title }) => {
 
   return (
     <div className={`flex flex-col ${isFullscreen ? 'fixed inset-0 z-50 bg-background' : 'h-full'}`}>
+      {/* Notificação de progresso restaurado */}
+      <AnimatePresence>
+        {showProgressRestored && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-primary text-primary-foreground px-4 py-2 rounded-lg shadow-lg flex items-center gap-2"
+          >
+            <BookmarkCheck className="w-4 h-4" />
+            <span className="text-sm font-medium">Continuando da página {pageNumber}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Toolbar */}
       <div className="flex flex-col md:flex-row items-center justify-between gap-2 p-2 md:p-4 bg-card border-b border-border">
         {/* Navegação de páginas */}

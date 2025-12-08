@@ -32,7 +32,7 @@ interface Purchase {
 }
 
 const Dashboard: React.FC = () => {
-  const { user, isLoading, hasPurchased } = useAuth();
+  const { user, isLoading } = useAuth();
   const [searchParams] = useSearchParams();
   const [selectedApostila, setSelectedApostila] = useState<Apostila | null>(null);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
@@ -41,6 +41,37 @@ const Dashboard: React.FC = () => {
   const [loadingApostilas, setLoadingApostilas] = useState(true);
   const [activeTab, setActiveTab] = useState<'apostilas' | 'compras'>('apostilas');
   const [hasUnreadPurchases, setHasUnreadPurchases] = useState(false);
+  const [totalPagesRead, setTotalPagesRead] = useState(0);
+
+  // Calcular total de páginas lidas
+  const calculateTotalPagesRead = () => {
+    if (!user || purchasedApostilas.length === 0) return 0;
+    
+    let total = 0;
+    purchasedApostilas.forEach((apostila) => {
+      const storageKey = `pdf_progress_${user.id}_${apostila.id}`;
+      const savedPage = localStorage.getItem(storageKey);
+      if (savedPage) {
+        total += parseInt(savedPage, 10);
+      }
+    });
+    
+    return total;
+  };
+
+  // Calcular total de páginas reais de todas apostilas
+  const calculateTotalPages = () => {
+    if (!user || purchasedApostilas.length === 0) return 0;
+    
+    let total = 0;
+    purchasedApostilas.forEach((apostila) => {
+      const pagesKey = `pdf_real_pages_${user.id}_${apostila.id}`;
+      const realPages = localStorage.getItem(pagesKey);
+      total += realPages ? parseInt(realPages, 10) : apostila.pages;
+    });
+    
+    return total;
+  };
 
   // Verificar se há compras não lidas
   useEffect(() => {
@@ -97,6 +128,12 @@ const Dashboard: React.FC = () => {
           }));
         
         setPurchasedApostilas(purchased);
+        
+        // Calcular páginas lidas após carregar apostilas
+        setTimeout(() => {
+          const total = calculateTotalPagesRead();
+          setTotalPagesRead(total);
+        }, 100);
       } catch (error) {
         console.error('Erro ao buscar apostilas compradas:', error);
       } finally {
@@ -106,6 +143,14 @@ const Dashboard: React.FC = () => {
 
     fetchPurchasedApostilas();
   }, [user]);
+
+  // Atualizar páginas lidas quando o viewer fechar
+  useEffect(() => {
+    if (!isViewerOpen && purchasedApostilas.length > 0) {
+      const total = calculateTotalPagesRead();
+      setTotalPagesRead(total);
+    }
+  }, [isViewerOpen, purchasedApostilas]);
 
   // Fetch purchases history
   useEffect(() => {
@@ -180,9 +225,9 @@ const Dashboard: React.FC = () => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             {[
               { icon: BookOpen, label: 'Apostilas', value: purchasedApostilas.length },
-              { icon: Clock, label: 'Horas estudadas', value: '12h' },
-              { icon: FileText, label: 'Páginas lidas', value: '340' },
-              { icon: Star, label: 'Progresso', value: '45%' },
+              { icon: Clock, label: 'Horas estudadas', value: Math.floor(totalPagesRead / 10) + 'h' },
+              { icon: FileText, label: 'Páginas lidas', value: totalPagesRead },
+              { icon: Star, label: 'Progresso', value: purchasedApostilas.length > 0 ? Math.round((totalPagesRead / calculateTotalPages()) * 100) + '%' : '0%' },
             ].map((stat, index) => (
               <div
                 key={index}
@@ -271,13 +316,30 @@ const Dashboard: React.FC = () => {
 
                       {/* Progress Bar */}
                       <div className="mb-4">
-                        <div className="flex items-center justify-between text-xs mb-1">
-                          <span className="text-muted-foreground">Progresso</span>
-                          <span className="text-primary font-medium">30%</span>
-                        </div>
-                        <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                          <div className="h-full w-[30%] gradient-primary rounded-full" />
-                        </div>
+                        {(() => {
+                          const storageKey = `pdf_progress_${user.id}_${apostila.id}`;
+                          const pagesKey = `pdf_real_pages_${user.id}_${apostila.id}`;
+                          const savedPage = localStorage.getItem(storageKey);
+                          const realPages = localStorage.getItem(pagesKey);
+                          const currentPage = savedPage ? parseInt(savedPage, 10) : 0;
+                          const totalPages = realPages ? parseInt(realPages, 10) : apostila.pages;
+                          const progress = Math.round((currentPage / totalPages) * 100);
+                          
+                          return (
+                            <>
+                              <div className="flex items-center justify-between text-xs mb-1">
+                                <span className="text-muted-foreground">Progresso</span>
+                                <span className="text-primary font-medium">{progress}%</span>
+                              </div>
+                              <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                                <div 
+                                  className="h-full gradient-primary rounded-full transition-all duration-500" 
+                                  style={{ width: `${progress}%` }}
+                                />
+                              </div>
+                            </>
+                          );
+                        })()}
                       </div>
 
                       {/* Actions */}
@@ -295,6 +357,14 @@ const Dashboard: React.FC = () => {
                         <Button
                           variant="outline"
                           className="rounded-xl"
+                          onClick={() => {
+                            if (apostila.pdfUrl) {
+                              const link = document.createElement('a');
+                              link.href = apostila.pdfUrl;
+                              link.download = `${apostila.title}.pdf`;
+                              link.click();
+                            }
+                          }}
                         >
                           <Download className="w-4 h-4" />
                         </Button>
@@ -454,7 +524,19 @@ const Dashboard: React.FC = () => {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" className="rounded-xl gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="rounded-xl gap-2"
+                  onClick={() => {
+                    if (selectedApostila?.pdfUrl) {
+                      const link = document.createElement('a');
+                      link.href = selectedApostila.pdfUrl;
+                      link.download = `${selectedApostila.title}.pdf`;
+                      link.click();
+                    }
+                  }}
+                >
                   <Download className="w-4 h-4" />
                   Baixar PDF
                 </Button>

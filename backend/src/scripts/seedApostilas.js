@@ -1,8 +1,14 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import Apostila from '../models/Apostila.js';
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Carregar .env da pasta backend
+dotenv.config({ path: join(__dirname, '../../.env') });
 
 const apostilas = [
   {
@@ -13,7 +19,7 @@ const apostilas = [
     originalPrice: 99.90,
     category: "Vestibulares",
     cover: "https://images.unsplash.com/photo-1636466497217-26a8cbeaf0aa?w=400&h=600&fit=crop",
-    pages: 450,
+    pages: 41,
     rating: 4.9,
     reviews: 387,
     features: ["400+ exercícios resolvidos", "Teoria completa", "Fórmulas organizadas", "Simulados ENEM", "Videoaulas bônus"],
