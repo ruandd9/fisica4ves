@@ -17,7 +17,7 @@ const purchaseSchema = new mongoose.Schema({
   },
   paymentMethod: {
     type: String,
-    enum: ['credit_card', 'debit_card', 'pix', 'boleto', 'stripe'],
+    enum: ['credit_card', 'debit_card', 'pix', 'boleto', 'stripe', 'mercadopago'],
     default: 'credit_card'
   },
   status: {

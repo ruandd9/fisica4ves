@@ -69,8 +69,8 @@ export const purchasesAPI = {
   createPixPayment: (apostilaId: string) =>
     api.post('/purchases/create-pix-payment', { apostilaId }),
   
-  checkPaymentStatus: (paymentIntentId: string) =>
-    api.get(`/purchases/check-payment-status/${paymentIntentId}`),
+  checkPaymentStatus: (paymentId: string) =>
+    api.get(`/purchases/check-payment-status/${paymentId}`),
   
   confirmPurchase: (apostilaId: string, paymentIntentId: string) =>
     api.post('/purchases/confirm', { apostilaId, paymentIntentId }),

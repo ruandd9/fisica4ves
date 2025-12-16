@@ -27,7 +27,9 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({ apostila, isOpen, onClose
   const [isSuccess, setIsSuccess] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
+  const [paymentId, setPaymentId] = useState<string | null>(null);
+  const [qrCode, setQrCode] = useState<string | null>(null);
+  const [qrCodeBase64, setQrCodeBase64] = useState<string | null>(null);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const stripePromise = getStripe();
 
@@ -62,10 +64,11 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({ apostila, isOpen, onClose
         setShowPaymentForm(true);
         setIsProcessing(false);
       } else if (paymentMethod === 'pix') {
-        // Criar Payment Intent PIX
+        // Criar Pagamento PIX via MercadoPago
         const response = await purchasesAPI.createPixPayment(apostila.id);
-        setClientSecret(response.data.clientSecret);
-        setPaymentIntentId(response.data.paymentIntentId);
+        setPaymentId(response.data.paymentId);
+        setQrCode(response.data.qr_code);
+        setQrCodeBase64(response.data.qr_code_base64);
         setShowPaymentForm(true);
         setIsProcessing(false);
       }
@@ -103,16 +106,18 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({ apostila, isOpen, onClose
       setIsSuccess(false);
       setShowPaymentForm(false);
       setClientSecret(null);
-      setPaymentIntentId(null);
+      setPaymentId(null);
+      setQrCode(null);
+      setQrCodeBase64(null);
       onClose();
       navigate('/dashboard');
       window.location.reload();
     }, 2000);
   };
 
-  const handleStripeSuccess = async (paymentIntentId: string) => {
+  const handlePaymentSuccess = async (paymentId: string) => {
     try {
-      await purchasesAPI.confirmPurchase(apostila!.id, paymentIntentId);
+      await purchasesAPI.confirmPurchase(apostila!.id, paymentId);
       handleSuccess();
     } catch (error: any) {
       toast({
@@ -123,7 +128,7 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({ apostila, isOpen, onClose
     }
   };
 
-  const handleStripeError = (error: string) => {
+  const handlePaymentError = (error: string) => {
     toast({
       title: 'Erro no pagamento',
       description: error,
@@ -194,32 +199,34 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({ apostila, isOpen, onClose
               </div>
 
               {/* Payment Forms */}
-              {showPaymentForm && clientSecret ? (
+              {showPaymentForm ? (
                 <>
-                  {paymentMethod === 'stripe' && stripePromise ? (
+                  {paymentMethod === 'stripe' && clientSecret && stripePromise ? (
                     <Elements stripe={stripePromise} options={{ clientSecret }}>
                       <StripePaymentForm
                         clientSecret={clientSecret}
                         amount={apostila.price}
-                        onSuccess={handleStripeSuccess}
-                        onError={handleStripeError}
+                        onSuccess={handlePaymentSuccess}
+                        onError={handlePaymentError}
                         onCancel={() => {
                           setShowPaymentForm(false);
                           setClientSecret(null);
                         }}
                       />
                     </Elements>
-                  ) : paymentMethod === 'pix' && paymentIntentId ? (
+                  ) : paymentMethod === 'pix' && paymentId && qrCode ? (
                     <PixPaymentForm
-                      paymentIntentId={paymentIntentId}
-                      clientSecret={clientSecret}
+                      paymentId={paymentId}
+                      qrCode={qrCode}
+                      qrCodeBase64={qrCodeBase64}
                       amount={apostila.price}
-                      onSuccess={handleStripeSuccess}
-                      onError={handleStripeError}
+                      onSuccess={handlePaymentSuccess}
+                      onError={handlePaymentError}
                       onCancel={() => {
                         setShowPaymentForm(false);
-                        setClientSecret(null);
-                        setPaymentIntentId(null);
+                        setPaymentId(null);
+                        setQrCode(null);
+                        setQrCodeBase64(null);
                       }}
                     />
                   ) : null}

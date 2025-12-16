@@ -5,17 +5,19 @@ import { purchasesAPI } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
 
 interface PixPaymentFormProps {
-  paymentIntentId: string;
-  clientSecret: string;
+  paymentId: string;
+  qrCode: string;
+  qrCodeBase64?: string;
   amount: number;
-  onSuccess: (paymentIntentId: string) => void;
+  onSuccess: (paymentId: string) => void;
   onError: (error: string) => void;
   onCancel: () => void;
 }
 
 export const PixPaymentForm = ({ 
-  paymentIntentId,
-  clientSecret,
+  paymentId,
+  qrCode,
+  qrCodeBase64,
   amount, 
   onSuccess, 
   onError,
@@ -25,9 +27,6 @@ export const PixPaymentForm = ({
   const [isChecking, setIsChecking] = useState(false);
   const [copied, setCopied] = useState(false);
   const [timeLeft, setTimeLeft] = useState(30 * 60); // 30 minutos em segundos
-  
-  // Código PIX simulado para teste (Stripe test mode)
-  const pixCode = `00020126580014br.gov.bcb.pix0136${paymentIntentId}520400005303986540${amount.toFixed(2)}5802BR5913APOSTILAS6009SAO PAULO62070503***6304`;
 
   // Timer de expiração
   useEffect(() => {
@@ -53,23 +52,28 @@ export const PixPaymentForm = ({
       setIsChecking(true);
       try {
         // Se for mock (test mode), simular pagamento após 10 segundos
-        if (paymentIntentId.startsWith('pi_pix_test_')) {
+        if (paymentId.startsWith('mp_pix_test_') || paymentId.startsWith('pi_pix_test_')) {
           // Simular pagamento bem-sucedido após 10 segundos
           setTimeout(() => {
             toast({
               title: 'Pagamento simulado!',
               description: 'PIX confirmado (modo teste)',
             });
-            onSuccess(paymentIntentId);
+            onSuccess(paymentId);
           }, 10000);
           setIsChecking(false);
           return;
         }
 
-        const response = await purchasesAPI.checkPaymentStatus(paymentIntentId);
+        const response = await purchasesAPI.checkPaymentStatus(paymentId);
         
-        if (response.data.status === 'succeeded') {
-          onSuccess(paymentIntentId);
+        // MercadoPago usa 'approved', Stripe usa 'succeeded'
+        if (response.data.status === 'approved' || response.data.status === 'succeeded') {
+          toast({
+            title: 'Pagamento confirmado!',
+            description: 'PIX aprovado com sucesso',
+          });
+          onSuccess(paymentId);
         }
       } catch (error) {
         console.error('Erro ao verificar status:', error);
@@ -85,10 +89,10 @@ export const PixPaymentForm = ({
     checkPaymentStatus();
 
     return () => clearInterval(interval);
-  }, [paymentIntentId, onSuccess, toast]);
+  }, [paymentId, onSuccess, toast]);
 
   const handleCopyPixCode = () => {
-    navigator.clipboard.writeText(pixCode);
+    navigator.clipboard.writeText(qrCode);
     setCopied(true);
     toast({
       title: 'Código copiado!',
@@ -113,14 +117,22 @@ export const PixPaymentForm = ({
         </div>
       </div>
 
-      {/* QR Code Simulado */}
+      {/* QR Code */}
       <div className="bg-white p-6 rounded-lg border-2 border-dashed border-border">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-48 h-48 bg-gradient-to-br from-primary/10 to-accent/10 rounded-lg flex items-center justify-center">
-            <QrCode className="w-32 h-32 text-primary/30" />
-          </div>
+          {qrCodeBase64 ? (
+            <img 
+              src={`data:image/png;base64,${qrCodeBase64}`}
+              alt="QR Code PIX"
+              className="w-48 h-48 rounded-lg"
+            />
+          ) : (
+            <div className="w-48 h-48 bg-gradient-to-br from-primary/10 to-accent/10 rounded-lg flex items-center justify-center">
+              <QrCode className="w-32 h-32 text-primary/30" />
+            </div>
+          )}
           <p className="text-sm text-center text-muted-foreground">
-            QR Code PIX (Modo Teste)
+            {qrCodeBase64 ? 'QR Code PIX - MercadoPago' : 'QR Code PIX (Modo Teste)'}
           </p>
         </div>
       </div>
@@ -131,7 +143,7 @@ export const PixPaymentForm = ({
         <div className="flex gap-2">
           <input
             type="text"
-            value={pixCode}
+            value={qrCode}
             readOnly
             className="flex-1 px-3 py-2 bg-muted rounded-lg text-xs font-mono"
           />
@@ -180,7 +192,7 @@ export const PixPaymentForm = ({
       </Button>
 
       <p className="text-xs text-muted-foreground text-center">
-        🔒 Pagamento seguro processado pelo Stripe
+        🔒 Pagamento seguro processado pelo MercadoPago
       </p>
     </div>
   );
