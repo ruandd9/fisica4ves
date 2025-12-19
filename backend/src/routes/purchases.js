@@ -137,25 +137,20 @@ router.post('/create-pix-payment', protect, async (req, res) => {
 
     // Criar pagamento PIX no MercadoPago
     try {
-      // Gerar dados MUITO únicos para forçar novo pagamento
+      // Gerar dados únicos para identificar o pagamento
       const timestamp = Date.now();
       const randomId = Math.random().toString(36).substr(2, 12);
       const userHash = req.user._id.toString().substr(-6);
       const uniqueId = `${timestamp}_${randomId}_${userHash}`;
       
-      // Alterar valor DRASTICAMENTE para forçar novo pagamento
-      const randomValue = Math.floor(Math.random() * 2000) + 500; // R$ 5,00 a R$ 25,00
-      const uniqueAmount = (randomValue / 100);
-      
       console.log('🔄 Gerando pagamento único:', {
         uniqueId,
-        originalAmount: apostila.price,
-        uniqueAmount: uniqueAmount,
+        amount: apostila.price,
         user: req.user._id
       });
       
       const paymentData = {
-        amount: parseFloat(uniqueAmount.toFixed(2)),
+        amount: parseFloat(apostila.price.toFixed(2)),
         description: `NOVA_COMPRA_${uniqueId}_${apostila.title}`,
         payer: {
           email: `comprador${timestamp}@pixtest${randomId}.com.br`, // Email totalmente único
@@ -168,7 +163,6 @@ router.post('/create-pix-payment', protect, async (req, res) => {
           paymentType: 'pix',
           uniqueId: uniqueId,
           timestamp: timestamp,
-          originalAmount: apostila.price,
           sessionId: `session_${timestamp}_${randomId}`,
           browserInfo: `browser_${Date.now()}`,
           orderNumber: `ORDER_${timestamp}_${userHash}`
