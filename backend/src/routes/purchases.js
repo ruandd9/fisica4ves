@@ -644,13 +644,22 @@ router.post('/simulate-pix-approval/:paymentId', protect, async (req, res) => {
 // @access  Public (MercadoPago)
 router.post('/webhook/mercadopago', async (req, res) => {
   try {
-    console.log('🔔 Webhook MercadoPago recebido:', req.body);
+    console.log('🔔 Webhook MercadoPago recebido:', {
+      headers: req.headers,
+      body: req.body,
+      timestamp: new Date().toISOString()
+    });
     
-    const { action, data } = req.body;
+    const { action, data, type } = req.body;
     
-    // Verificar se é uma notificação de pagamento
-    if (action === 'payment.updated' || action === 'payment.created') {
-      const paymentId = data.id;
+    // Verificar diferentes tipos de notificação
+    if (action === 'payment.updated' || action === 'payment.created' || type === 'payment') {
+      const paymentId = data?.id || req.body.id;
+      
+      if (!paymentId) {
+        console.log('⚠️ Webhook sem payment ID válido');
+        return res.status(200).json({ received: true, message: 'No payment ID' });
+      }
       
       console.log('💰 Processando notificação de pagamento:', paymentId);
       
@@ -658,29 +667,47 @@ router.post('/webhook/mercadopago', async (req, res) => {
         // Buscar detalhes do pagamento no MercadoPago
         const payment = await getPaymentStatus(paymentId);
         
-        console.log('📊 Status do pagamento via webhook:', payment.status);
+        console.log('📊 Status do pagamento via webhook:', {
+          id: paymentId,
+          status: payment.status,
+          external_reference: payment.external_reference,
+          amount: payment.amount
+        });
         
         if (payment.status === 'approved') {
           console.log('✅ Pagamento aprovado via webhook:', paymentId);
           
-          // Aqui você pode implementar lógica adicional se necessário
-          // Por exemplo, atualizar status no banco de dados, enviar emails, etc.
+          // TODO: Implementar lógica de aprovação automática
+          // - Buscar compra pela external_reference
+          // - Atualizar status no banco
+          // - Enviar email de confirmação
+          // - Liberar apostila automaticamente
           
-          // Por enquanto, apenas loggar
           console.log('🎉 Pagamento processado com sucesso via webhook');
         }
         
       } catch (error) {
-        console.error('❌ Erro ao processar webhook:', error);
+        console.error('❌ Erro ao processar webhook:', error.message);
       }
+    } else {
+      console.log('ℹ️ Webhook de tipo não processado:', { action, type });
     }
     
     // Sempre responder 200 OK para o MercadoPago
-    res.status(200).json({ received: true });
+    res.status(200).json({ 
+      received: true, 
+      timestamp: new Date().toISOString(),
+      processed: true 
+    });
     
   } catch (error) {
-    console.error('❌ Erro no webhook MercadoPago:', error);
-    res.status(200).json({ received: true }); // Ainda assim responder OK
+    console.error('❌ Erro no webhook MercadoPago:', error.message);
+    // Sempre responder 200 OK mesmo com erro
+    res.status(200).json({ 
+      received: true, 
+      error: 'processed_with_error',
+      timestamp: new Date().toISOString()
+    });
   }
 });
 

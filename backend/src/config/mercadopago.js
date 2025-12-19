@@ -94,6 +94,10 @@ export const createPixPayment = async (paymentData) => {
           unit_price: paymentData.amount // Preço do item
         }
       ],
+      // WEBHOOK NOTIFICATIONS (Ação obrigatória)
+      notification_url: `${process.env.FRONTEND_URL || 'https://seu-dominio.com'}/api/purchases/webhook/mercadopago`,
+      // REFERÊNCIA EXTERNA (Ação obrigatória)
+      external_reference: `apostila_${paymentData.metadata?.apostilaId}_${Date.now()}`,
       metadata: paymentData.metadata || {}
     };
 
@@ -153,6 +157,10 @@ export const createPixPayment = async (paymentData) => {
                 unit_price: paymentData.amount
               }
             ],
+            // WEBHOOK NOTIFICATIONS (Ação obrigatória)
+            notification_url: `${process.env.FRONTEND_URL || 'https://seu-dominio.com'}/api/purchases/webhook/mercadopago`,
+            // REFERÊNCIA EXTERNA (Ação obrigatória)
+            external_reference: `apostila_${paymentData.metadata?.apostilaId}_${Date.now()}`,
             metadata: paymentData.metadata || {}
           };
 
