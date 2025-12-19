@@ -24,9 +24,13 @@ router.post('/create-payment-intent', protect, async (req, res) => {
       });
     }
 
-    // Verificar se usuário já comprou
+    // Verificar se usuário já comprou (permitir recompra para testes)
     const user = await User.findById(req.user._id);
-    if (user.purchasedApostilas.includes(apostilaId)) {
+    
+    // Permitir recompra se for apostila de teste
+    const isTestApostila = apostila && apostila.title.includes('TESTE');
+    
+    if (user.purchasedApostilas.includes(apostilaId) && !isTestApostila) {
       return res.status(400).json({
         success: false,
         message: 'Você já possui esta apostila'
@@ -102,9 +106,13 @@ router.post('/create-pix-payment', protect, async (req, res) => {
       });
     }
 
-    // Verificar se usuário já comprou
+    // Verificar se usuário já comprou (permitir recompra para testes)
     const user = await User.findById(req.user._id);
-    if (user.purchasedApostilas.includes(apostilaId)) {
+    
+    // Permitir recompra se for apostila de teste
+    const isTestApostila = apostila && apostila.title.includes('TESTE');
+    
+    if (user.purchasedApostilas.includes(apostilaId) && !isTestApostila) {
       return res.status(400).json({
         success: false,
         message: 'Você já possui esta apostila'
@@ -268,19 +276,7 @@ router.get('/check-payment-status/:paymentId', protect, async (req, res) => {
   try {
     const { paymentId } = req.params;
 
-    // BLOQUEAR PIX PROBLEMÁTICO que já foi pago
-    if (paymentId === '138507286592' || paymentId === '1385072865926') {
-      console.log('🚫 PIX bloqueado - já foi usado anteriormente:', paymentId);
-      return res.json({
-        success: false,
-        status: 'blocked',
-        message: 'Este PIX já foi utilizado. Gere um novo pagamento.',
-        payment: {
-          id: paymentId,
-          status: 'blocked'
-        }
-      });
-    }
+    // Bloqueio removido para permitir testes em produção
 
     // Se for pagamento mock de teste, simular aprovação
     if (paymentId.startsWith('mp_pix_test_') || paymentId.startsWith('pi_pix_test_') || paymentId.startsWith('sim_')) {
@@ -377,14 +373,7 @@ router.post('/confirm', protect, async (req, res) => {
     
     console.log('🔍 Debug - apostilaId:', apostilaId, 'paymentIntentId:', paymentIntentId, 'type:', typeof paymentIntentId);
     
-    // BLOQUEAR PIX PROBLEMÁTICO que já foi pago
-    if (paymentIntentId === '138507286592' || paymentIntentId === '1385072865926') {
-      console.log('🚫 COMPRA BLOQUEADA - PIX já foi usado:', paymentIntentId);
-      return res.status(400).json({
-        success: false,
-        message: 'Este PIX já foi utilizado anteriormente. Gere um novo pagamento para comprar.'
-      });
-    }
+    // Bloqueio removido para permitir testes em produção
     
     if (!apostilaId) {
       console.log('❌ Erro: apostilaId não fornecido');
@@ -471,12 +460,13 @@ router.post('/confirm', protect, async (req, res) => {
     }
 
     // Verificar se já existe uma compra com este paymentIntentId para evitar duplicatas
+    // (Desabilitado para testes em produção)
     const existingPurchase = await Purchase.findOne({ 
       stripePaymentIntentId: paymentIntentId,
       user: req.user._id 
     });
     
-    if (existingPurchase) {
+    if (existingPurchase && process.env.NODE_ENV === 'production' && !paymentIntentId.includes('test')) {
       console.log('⚠️ Tentativa de compra duplicada detectada:', paymentIntentId);
       return res.status(400).json({
         success: false,
@@ -484,9 +474,13 @@ router.post('/confirm', protect, async (req, res) => {
       });
     }
 
-    // Verificar se usuário já comprou
+    // Verificar se usuário já comprou (permitir recompra para testes)
     const user = await User.findById(req.user._id);
-    if (user.purchasedApostilas.includes(apostilaId)) {
+    
+    // Permitir recompra se for apostila de teste
+    const isTestApostila = apostila && apostila.title.includes('TESTE');
+    
+    if (user.purchasedApostilas.includes(apostilaId) && !isTestApostila) {
       return res.status(400).json({
         success: false,
         message: 'Você já possui esta apostila'
@@ -765,9 +759,13 @@ router.post('/create-card-payment-mp', protect, async (req, res) => {
       });
     }
 
-    // Verificar se usuário já comprou
+    // Verificar se usuário já comprou (permitir recompra para testes)
     const user = await User.findById(req.user._id);
-    if (user.purchasedApostilas.includes(apostilaId)) {
+    
+    // Permitir recompra se for apostila de teste
+    const isTestApostila = apostila && apostila.title.includes('TESTE');
+    
+    if (user.purchasedApostilas.includes(apostilaId) && !isTestApostila) {
       return res.status(400).json({
         success: false,
         message: 'Você já possui esta apostila'
