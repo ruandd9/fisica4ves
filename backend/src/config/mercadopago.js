@@ -83,6 +83,17 @@ export const createPixPayment = async (paymentData) => {
           number: testCPF
         }
       },
+      // MELHORIAS PARA QUALIDADE DA INTEGRAÇÃO
+      items: [
+        {
+          id: paymentData.metadata?.apostilaId || 'apostila_001', // Código do item
+          title: paymentData.metadata?.apostilaTitle || 'Apostila Digital', // Nome do item
+          description: paymentData.description, // Descrição do item
+          category_id: 'education', // Categoria do item
+          quantity: 1, // Quantidade do produto/serviço
+          unit_price: paymentData.amount // Preço do item
+        }
+      ],
       metadata: paymentData.metadata || {}
     };
 
@@ -131,6 +142,17 @@ export const createPixPayment = async (paymentData) => {
                 number: '11144477735' // CPF de teste específico do MercadoPago
               }
             },
+            // MELHORIAS PARA QUALIDADE DA INTEGRAÇÃO
+            items: [
+              {
+                id: paymentData.metadata?.apostilaId || 'apostila_001',
+                title: paymentData.metadata?.apostilaTitle || 'Apostila Digital',
+                description: paymentData.description,
+                category_id: 'education',
+                quantity: 1,
+                unit_price: paymentData.amount
+              }
+            ],
             metadata: paymentData.metadata || {}
           };
 

@@ -31,6 +31,17 @@ export const PixPaymentForm = ({
   const [copied, setCopied] = useState(false);
   const [timeLeft, setTimeLeft] = useState(30 * 60); // 30 minutos em segundos
 
+  // Inicializar MercadoPago SDK para Device ID
+  useEffect(() => {
+    if (typeof window !== 'undefined' && (window as any).MercadoPago) {
+      const mp = new (window as any).MercadoPago(import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY);
+      
+      // Gerar Device ID para melhorar qualidade da integração
+      const deviceId = mp.getIdentificationTypes();
+      console.log('🔧 MercadoPago SDK inicializado para Device ID');
+    }
+  }, []);
+
   // Timer de expiração
   useEffect(() => {
     const timer = setInterval(() => {
