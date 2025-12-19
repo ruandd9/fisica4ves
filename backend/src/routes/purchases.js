@@ -156,10 +156,10 @@ router.post('/create-pix-payment', protect, async (req, res) => {
       
       const paymentData = {
         amount: parseFloat(uniqueAmount.toFixed(2)),
-        description: `${apostila.title} | ID: ${uniqueId} | User: ${userHash}`,
+        description: `NOVA_COMPRA_${uniqueId}_${apostila.title}`,
         payer: {
-          email: `buyer${timestamp}${randomId}@testpix.com`, // Email completamente diferente
-          name: `Comprador ${timestamp.toString().substr(-4)}` // Nome completamente diferente
+          email: `comprador${timestamp}@pixtest${randomId}.com.br`, // Email totalmente único
+          name: `Cliente ${randomId.substr(0,6)}` // Nome único
         },
         metadata: {
           apostilaId: apostilaId,
@@ -168,7 +168,10 @@ router.post('/create-pix-payment', protect, async (req, res) => {
           paymentType: 'pix',
           uniqueId: uniqueId,
           timestamp: timestamp,
-          originalAmount: apostila.price
+          originalAmount: apostila.price,
+          sessionId: `session_${timestamp}_${randomId}`,
+          browserInfo: `browser_${Date.now()}`,
+          orderNumber: `ORDER_${timestamp}_${userHash}`
         }
       };
 
