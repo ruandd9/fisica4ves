@@ -158,8 +158,8 @@ router.post('/create-pix-payment', protect, async (req, res) => {
         amount: parseFloat(uniqueAmount.toFixed(2)),
         description: `${apostila.title} | ID: ${uniqueId} | User: ${userHash}`,
         payer: {
-          email: `test${timestamp}+${user.email}`,
-          name: `${user.name} ${randomId.substr(0,4)}`
+          email: `buyer${timestamp}${randomId}@testpix.com`, // Email completamente diferente
+          name: `Comprador ${timestamp.toString().substr(-4)}` // Nome completamente diferente
         },
         metadata: {
           apostilaId: apostilaId,
@@ -271,6 +271,20 @@ router.get('/check-payment-status/:paymentId', protect, async (req, res) => {
   try {
     const { paymentId } = req.params;
 
+    // BLOQUEAR PIX PROBLEMÁTICO que já foi pago
+    if (paymentId === '138507286592' || paymentId === '1385072865926') {
+      console.log('🚫 PIX bloqueado - já foi usado anteriormente:', paymentId);
+      return res.json({
+        success: false,
+        status: 'blocked',
+        message: 'Este PIX já foi utilizado. Gere um novo pagamento.',
+        payment: {
+          id: paymentId,
+          status: 'blocked'
+        }
+      });
+    }
+
     // Se for pagamento mock de teste, simular aprovação
     if (paymentId.startsWith('mp_pix_test_') || paymentId.startsWith('pi_pix_test_') || paymentId.startsWith('sim_')) {
       return res.json({
@@ -365,6 +379,15 @@ router.post('/confirm', protect, async (req, res) => {
     const paymentIntentId = String(rawPaymentIntentId);
     
     console.log('🔍 Debug - apostilaId:', apostilaId, 'paymentIntentId:', paymentIntentId, 'type:', typeof paymentIntentId);
+    
+    // BLOQUEAR PIX PROBLEMÁTICO que já foi pago
+    if (paymentIntentId === '138507286592' || paymentIntentId === '1385072865926') {
+      console.log('🚫 COMPRA BLOQUEADA - PIX já foi usado:', paymentIntentId);
+      return res.status(400).json({
+        success: false,
+        message: 'Este PIX já foi utilizado anteriormente. Gere um novo pagamento para comprar.'
+      });
+    }
     
     if (!apostilaId) {
       console.log('❌ Erro: apostilaId não fornecido');
